@@ -5,11 +5,13 @@
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "build:ui": "rm -rf dist && cd ../part1/ && npm run build && cp -r dist ../part1",
+    "deploy:full": "npm run build:ui && git add . && git commit -m UiBuild && git push"
   },
   "repository": {
     "type": "git",
-    "url": "github"
+    "url": "https://github.com/chandanpandey/fullstack.git"
   },
   "author": "chandan",
   "license": "MIT",
