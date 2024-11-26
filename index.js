@@ -1,23 +1,11 @@
 const express = require('express')
-const app = express()
+const Note = require('./models/note')
 const cors = require('cors')
+const mongoose = require('mongoose')
 
-let notes = [
-    {
-      "id": "1",
-      "content": "HTML is easy",
-      "important": false
-    },
-    {
-      "id": "2",
-      "content": "Browser can execute only JavaScript",
-      "important": false
-    },
-    {
-      "id": "3",
-      "content": "GET and POST are the most important methods of HTTP protocol",
-      "important": true
-    }]
+
+
+const app = express()
 
 app.use(express.static('dist'))
 app.use(cors())
@@ -27,29 +15,28 @@ app.get('/', (request, response) =>{
     response.send('<h1>Hello World</h1>')
 })
 
+
 app.get('/api/notes', (request, response)=> {
-    response.json(notes)
+    Note.find({}).then(notes => {
+      response.json(notes)
+    })
 })
 
-app.get('/api/notes/:id', (request, response)=> {
+app.get('/api/notes/:id', async (request, response)=> {
     const id = request.params.id
-    const note = notes.find(note => note.id === id)
-    note? response.json(note) : response.status(404).end()
+    await Note.findById(id).then(note => {
+      !note? response.status(400).json({message: "Note not found."})
+      :response.status(200).json(note)})
+      .catch((err)=> response.status(500).json({message: "Failed to find the note.", err}))
 })
 
-app.delete('/api/notes/:id', (request, response)=>{
+app.delete('/api/notes/:id', async (request, response)=>{
   const id = request.params.id
-  notes = notes.filter(note=> note.id !== id)
-
+  await Note.findByIdAndDelete(id)
   response.status(204).end()
 })
 
-const generateID = () => {
-  const maxId = notes.length > 0 ? Math.max(...notes.map(n=> Number(n.id))):0
-  return String(maxId + 1)
-}
-
-app.post('/api/notes', (request, response)=>{
+app.post('/api/notes', async (request, response)=>{
   const body = request.body
   
   if(!body.content){
@@ -57,27 +44,25 @@ app.post('/api/notes', (request, response)=>{
       error: 'content missing'
     })
   }
-  const note = {
+  
+  const note = new Note({
     content: body.content,
-    important: Boolean(body.important) || false,
-    id: generateID()
-  }
+    important: body.important || false
+  })
 
-  notes = notes.concat(note)
-
-  response.json(note)
+  await note.save().then(savedNotes => {
+    return response.status(201).json(savedNotes)
+  }).catch((err)=>response.status(500).json({message:"Error saving the notes.",err}))
 })
 
-app.put('/api/notes/:id', (request, response)=>{
+app.put('/api/notes/:id', async (request, response)=>{
   const body = request.body
+  const id = request.params.id
 
-  const note = {
-    content: body.content,
-    important: Boolean(body.important) || false,
-    id: body.id
-  }
-  notes = notes.map(n=> n.id===note.id?note:n)
-  response.status(204).end()
+  await Note.findByIdAndUpdate(id, body, {new:true})
+  .then(note=> response.status(200).json(note))
+  .catch((err) => response.status(500).json({message: "Failed to update the note."}))
+
 })
 
 const PORT = process.env.PORT || 3000
